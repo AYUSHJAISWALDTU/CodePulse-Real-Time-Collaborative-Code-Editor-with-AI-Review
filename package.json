@@ -1,0 +1,29 @@
+{
+  "name": "codepulse",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Real-time collaborative code editor with AI-powered code review",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "test": "turbo run test",
+    "clean": "turbo run clean",
+    "db:generate": "pnpm --filter @codepulse/db generate",
+    "db:migrate": "pnpm --filter @codepulse/db migrate:dev",
+    "db:push": "pnpm --filter @codepulse/db push",
+    "db:studio": "pnpm --filter @codepulse/db studio",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.3.0",
+    "turbo": "^2.1.0"
+  },
+  "packageManager": "pnpm@9.7.0",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

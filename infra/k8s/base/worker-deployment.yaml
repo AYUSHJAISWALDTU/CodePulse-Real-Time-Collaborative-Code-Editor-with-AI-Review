@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: codepulse
+  labels:
+    app: codepulse
+    component: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: codepulse
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: codepulse
+        component: worker
+    spec:
+      containers:
+        - name: worker
+          image: codepulse/worker:latest
+          envFrom:
+            - configMapRef:
+                name: codepulse-config
+            - secretRef:
+                name: codepulse-secrets
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+---
+# Worker does not need a Service — it pulls from a queue,
+# it doesn't receive inbound traffic.

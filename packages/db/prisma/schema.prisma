@@ -1,0 +1,242 @@
+// This is the CodePulse Prisma schema.
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Auth ──────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid()) 
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  displayName  String   @map("display_name")
+  avatarUrl    String?  @map("avatar_url")
+  createdAt    DateTime @default(now()) @map("created_at") 
+
+  refreshTokens     RefreshToken[]
+  ownedWorkspaces   Workspace[]          @relation("WorkspaceOwner")
+  memberships       WorkspaceMember[]
+  createdFiles      File[]               @relation("FileCreator")
+  triggeredReviews  AiReviewJob[]
+  acceptedFindings  AiReviewFinding[]
+  documentOps       DocumentOperation[]
+  snapshots         DocumentSnapshot[]   @relation("SnapshotCreator")
+  collaborationEvts CollaborationEvent[]
+  roomSessions      RoomSession[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) 
+  userId    String    @map("user_id") 
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at") 
+  createdAt DateTime  @default(now()) @map("created_at") 
+  revokedAt DateTime? @map("revoked_at") 
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// ── Workspace ─────────────────────────────────────────────
+
+model Workspace {
+  id          String   @id @default(uuid()) 
+  name        String
+  ownerUserId String   @map("owner_user_id") 
+  createdAt   DateTime @default(now()) @map("created_at") 
+
+  owner   User              @relation("WorkspaceOwner", fields: [ownerUserId], references: [id])
+  members WorkspaceMember[]
+  files   File[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  workspaceId String   @map("workspace_id") 
+  userId      String   @map("user_id") 
+  role        String   // 'owner' | 'editor' | 'viewer'
+  joinedAt    DateTime @default(now()) @map("joined_at") 
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, userId])
+  @@map("workspace_members")
+}
+
+// ── Files ─────────────────────────────────────────────────
+
+model File {
+  id          String   @id @default(uuid()) 
+  workspaceId String   @map("workspace_id") 
+  path        String
+  language    String
+  createdBy   String   @map("created_by") 
+  createdAt   DateTime @default(now()) @map("created_at") 
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") 
+
+  workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator     User                @relation("FileCreator", fields: [createdBy], references: [id])
+  rooms       CollaborationRoom[]
+  snapshots   DocumentSnapshot[]
+  operations  DocumentOperation[]
+  reviewJobs  AiReviewJob[]
+  events      CollaborationEvent[]
+
+  @@unique([workspaceId, path])
+  @@index([workspaceId, updatedAt(sort: Desc)])
+  @@map("files")
+}
+
+// ── Collaboration ─────────────────────────────────────────
+
+model CollaborationRoom {
+  id               String   @id @default(uuid()) 
+  fileId           String   @map("file_id") 
+  branchName       String   @default("main") @map("branch_name")
+  status           String   // 'active' | 'idle' | 'archived'
+  latestSnapshotId String?  @map("latest_snapshot_id") 
+  createdAt        DateTime @default(now()) @map("created_at") 
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") 
+
+  file       File                 @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  snapshots  DocumentSnapshot[]
+  operations DocumentOperation[]
+  events     CollaborationEvent[]
+  sessions   RoomSession[]
+
+  @@unique([fileId, branchName])
+  @@map("collaboration_rooms")
+}
+
+model DocumentSnapshot {
+  id          String   @id @default(uuid()) 
+  roomId      String   @map("room_id") 
+  fileId      String   @map("file_id") 
+  versionNo   BigInt   @map("version_no")
+  textContent String   @map("text_content")
+  crdtState   Bytes?   @map("crdt_state")
+  createdBy   String?  @map("created_by") 
+  reason      String   // 'autosave' | 'manual_save' | 'review' | 'restore' | 'compaction'
+  createdAt   DateTime @default(now()) @map("created_at") 
+
+  room       CollaborationRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  file       File              @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  creator    User?             @relation("SnapshotCreator", fields: [createdBy], references: [id])
+  reviewJobs AiReviewJob[]
+
+  @@unique([roomId, versionNo])
+  @@index([roomId, versionNo(sort: Desc)])
+  @@map("document_snapshots")
+}
+
+model DocumentOperation {
+  id            String   @id @default(uuid()) 
+  roomId        String   @map("room_id") 
+  fileId        String   @map("file_id") 
+  actorUserId   String   @map("actor_user_id") 
+  seqNo         BigInt   @map("seq_no")
+  baseVersionNo BigInt   @map("base_version_no")
+  opKind        String   @map("op_kind")
+  opPayload     String?    @map("op_payload")
+  crdtUpdate    Bytes?   @map("crdt_update")
+  createdAt     DateTime @default(now()) @map("created_at") 
+
+  room  CollaborationRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  file  File              @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  actor User              @relation(fields: [actorUserId], references: [id])
+
+  @@unique([roomId, seqNo])
+  @@index([roomId, seqNo(sort: Desc)])
+  @@map("document_operations")
+}
+
+model RoomSession {
+  id        String    @id @default(uuid()) 
+  roomId    String    @map("room_id") 
+  userId    String    @map("user_id") 
+  joinedAt  DateTime  @default(now()) @map("joined_at") 
+  leftAt    DateTime? @map("left_at") 
+  socketId  String?   @map("socket_id")
+
+  room CollaborationRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("room_sessions")
+}
+
+// ── AI Review ─────────────────────────────────────────────
+
+model AiReviewJob {
+  id           String    @id @default(uuid()) 
+  fileId       String    @map("file_id") 
+  snapshotId   String    @map("snapshot_id") 
+  triggeredBy  String    @map("triggered_by") 
+  status       String    // 'queued' | 'running' | 'completed' | 'failed'
+  modelName    String    @map("model_name")
+  inputTokens  Int?      @map("input_tokens")
+  outputTokens Int?      @map("output_tokens")
+  latencyMs    Int?      @map("latency_ms")
+  summary      String?
+  errorMessage String?   @map("error_message")
+  createdAt    DateTime  @default(now()) @map("created_at") 
+  completedAt  DateTime? @map("completed_at") 
+
+  file      File              @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  snapshot  DocumentSnapshot  @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  triggerer User              @relation(fields: [triggeredBy], references: [id])
+  findings  AiReviewFinding[]
+
+  @@index([fileId, createdAt(sort: Desc)])
+  @@map("ai_review_jobs")
+}
+
+model AiReviewFinding {
+  id          String    @id @default(uuid()) 
+  reviewJobId String    @map("review_job_id") 
+  severity    String    // 'low' | 'medium' | 'high'
+  category    String    // 'bug' | 'performance' | 'security' | 'readability' | 'refactor'
+  title       String
+  explanation String
+  suggestion  String?
+  startLine   Int?      @map("start_line")
+  endLine     Int?      @map("end_line")
+  confidence  Float?  
+  acceptedBy  String?   @map("accepted_by") 
+  acceptedAt  DateTime? @map("accepted_at") 
+
+  reviewJob AiReviewJob @relation(fields: [reviewJobId], references: [id], onDelete: Cascade)
+  accepter  User?       @relation(fields: [acceptedBy], references: [id])
+
+  @@map("ai_review_findings")
+}
+
+// ── Audit ─────────────────────────────────────────────────
+
+model CollaborationEvent {
+  id           String   @id @default(uuid()) 
+  roomId       String?  @map("room_id") 
+  fileId       String?  @map("file_id") 
+  userId       String?  @map("user_id") 
+  eventType    String   @map("event_type")
+  eventPayload String?    @map("event_payload")
+  createdAt    DateTime @default(now()) @map("created_at") 
+
+  room CollaborationRoom? @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  file File?              @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  user User?              @relation(fields: [userId], references: [id])
+
+  @@index([roomId, createdAt(sort: Desc)])
+  @@map("collaboration_events")
+}

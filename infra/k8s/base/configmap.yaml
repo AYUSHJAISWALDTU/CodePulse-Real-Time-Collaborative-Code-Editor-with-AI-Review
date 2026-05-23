@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: codepulse-config
+  namespace: codepulse
+data:
+  NODE_ENV: "production"
+  API_PORT: "4000"
+  REALTIME_PORT: "4001"
+  WORKER_PORT: "4002"
+  WEB_PORT: "3000"
+  CORS_ORIGIN: "https://codepulse.example.com"
+  JWT_EXPIRES_IN: "15m"
+  REFRESH_TOKEN_EXPIRES_IN: "7d"
+  OPENAI_MODEL: "gpt-4o"

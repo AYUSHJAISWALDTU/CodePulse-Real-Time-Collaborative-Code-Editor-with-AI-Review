@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: realtime
+  namespace: codepulse
+  labels:
+    app: codepulse
+    component: realtime
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: codepulse
+      component: realtime
+  template:
+    metadata:
+      labels:
+        app: codepulse
+        component: realtime
+    spec:
+      containers:
+        - name: realtime
+          image: codepulse/realtime:latest
+          ports:
+            - containerPort: 4001
+          envFrom:
+            - configMapRef:
+                name: codepulse-config
+            - secretRef:
+                name: codepulse-secrets
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          readinessProbe:
+            tcpSocket:
+              port: 4001
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 4001
+            initialDelaySeconds: 15
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: realtime
+  namespace: codepulse
+spec:
+  selector:
+    app: codepulse
+    component: realtime
+  ports:
+    - port: 4001
+      targetPort: 4001

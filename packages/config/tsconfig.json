@@ -1,0 +1,4 @@
+{
+  "extends": "@codepulse/tsconfig/node.json",
+  "include": ["src"]
+}

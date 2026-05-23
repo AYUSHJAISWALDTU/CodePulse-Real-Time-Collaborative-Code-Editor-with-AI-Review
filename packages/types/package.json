@@ -1,0 +1,15 @@
+{
+  "name": "@codepulse/types",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@codepulse/tsconfig": "workspace:*",
+    "typescript": "^5.5.0"
+  }
+}

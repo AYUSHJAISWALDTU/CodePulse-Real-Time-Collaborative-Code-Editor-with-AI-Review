@@ -1,0 +1,26 @@
+{
+  "name": "@codepulse/worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/worker.ts",
+    "build": "tsc",
+    "start": "node dist/worker.js",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@codepulse/config": "workspace:*",
+    "@codepulse/db": "workspace:*",
+    "@codepulse/types": "workspace:*",
+    "ioredis": "^5.4.0",
+    "openai": "^4.56.0",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@codepulse/tsconfig": "workspace:*",
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.17.0",
+    "typescript": "^5.5.0"
+  }
+}
