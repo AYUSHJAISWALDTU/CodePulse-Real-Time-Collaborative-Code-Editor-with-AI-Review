@@ -6,7 +6,7 @@ import type {
   PresenceUpdatePayload,
   DocUpdatePayload,
   ReviewStreamPayload,
-} from "@codepulse/types";
+} from "../types";
 
 const REALTIME_URL =
   process.env.NEXT_PUBLIC_REALTIME_URL || "http://localhost:4001";
